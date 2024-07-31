@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translator</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            background-color: rgb(230, 241, 250);
+            font-family: Arial, sans-serif;
+            color: #03000b;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .title-bar {
+            width: 100%;
+            background-color: #589ff6;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        button {
+            background-color: #589ff6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #54b5fb;
+            cursor: not-allowed;
+        }
+        h2 {
+            color: #6924e7;
+        }
+        p, table, ul {
+            width: 80%;
+            max-width: 600px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #396ffa;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #396ff6;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background-color: #87f6f8;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            color: black;
+        }
+        #audio-player {
+            margin-top: 20px;
+        }
+        #translation-form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        label, select {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="title-bar">
+        <h1>Translator</h1>
+    </div>
+    <button id="start-record">Start Recording</button>
+    <button id="stop-record" disabled>Stop Recording</button>
+    <button id="play-audio" style="display:none;">Play Audio</button>
+    <button id="transcribe-audio" style="display:none;">Transcribe</button>
+    
+    <h2>Transcription</h2>
+    <p id="transcription"></p>
+    
+    <h2>Translated Text</h2>
+    <p id="translated-text"></p>
+    
+    <audio id="audio-player" controls style="display:none;"></audio>
+
+    <form id="translation-form" style="display:none;">
+        <label for="language">Choose a language for translation:</label>
+        <select id="language" name="language">
+            <!-- Language options will be dynamically populated here -->
+        </select>
+        <button type="button" id="translate-text">Translate</button>
+    </form>
+
+    <script>
+        const languageOptions = {
+            'afrikaans': 'af', 'albanian': 'sq', 'arabic': 'ar', 'armenian': 'hy',
+            'bengali': 'bn', 'bosnian': 'bs', 'catalan': 'ca', 'croatian': 'hr',
+            'czech': 'cs', 'danish': 'da', 'dutch': 'nl', 'english': 'en',
+            'esperanto': 'eo', 'estonian': 'et', 'filipino': 'tl', 'finnish': 'fi',
+            'french': 'fr', 'german': 'de', 'greek': 'el', 'gujarati': 'gu',
+            'hindi': 'hi', 'hungarian': 'hu', 'icelandic': 'is', 'indonesian': 'id',
+            'italian': 'it', 'japanese': 'ja', 'javanese': 'jw', 'kannada': 'kn',
+            'khmer': 'km', 'korean': 'ko', 'latin': 'la', 'latvian': 'lv',
+            'lithuanian': 'lt', 'macedonian': 'mk', 'malayalam': 'ml', 'marathi': 'mr',
+            'myanmar': 'my', 'nepali': 'ne', 'norwegian': 'no', 'polish': 'pl',
+            'portuguese': 'pt', 'punjabi': 'pa', 'romanian': 'ro', 'russian': 'ru',
+            'serbian': 'sr', 'sinhala': 'si', 'slovak': 'sk', 'slovenian': 'sl',
+            'spanish': 'es', 'sundanese': 'su', 'swahili': 'sw', 'swedish': 'sv',
+            'tamil': 'ta', 'telugu': 'te', 'thai': 'th', 'turkish': 'tr',
+            'ukrainian': 'uk', 'urdu': 'ur', 'vietnamese': 'vi', 'welsh': 'cy',
+            'xhosa': 'xh', 'yiddish': 'yi', 'yoruba': 'yo', 'zulu': 'zu'
+        };
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let audioBlob;
+        let audioUrl;
+
+        const startRecordButton = document.getElementById('start-record');
+        const stopRecordButton = document.getElementById('stop-record');
+        const playAudioButton = document.getElementById('play-audio');
+        const transcribeAudioButton = document.getElementById('transcribe-audio');
+        const transcriptionElement = document.getElementById('transcription');
+        const translatedTextElement = document.getElementById('translated-text');
+        const audioPlayer = document.getElementById('audio-player');
+        const translationForm = document.getElementById('translation-form');
+        const translateTextButton = document.getElementById('translate-text');
+        const languageSelect = document.getElementById('language');
+
+        // Populate language options
+        Object.keys(languageOptions).forEach(lang => {
+            const option = document.createElement('option');
+            option.value = languageOptions[lang];
+            option.textContent = lang.charAt(0).toUpperCase() + lang.slice(1);
+            languageSelect.appendChild(option);
+        });
+
+        startRecordButton.addEventListener('click', async () => {
+            recordedChunks = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+            mediaRecorder.onstop = () => {
+                audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayer.src = audioUrl;
+                audioPlayer.style.display = 'block';
+                playAudioButton.style.display = 'block';
+                transcribeAudioButton.style.display = 'block';
+            };
+            mediaRecorder.start();
+            startRecordButton.disabled = true;
+            stopRecordButton.disabled = false;
+        });
+
+        stopRecordButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            startRecordButton.disabled = false;
+            stopRecordButton.disabled = true;
+        });
+
+        playAudioButton.addEventListener('click', () => {
+            audioPlayer.play();
+        });
+
+        transcribeAudioButton.addEventListener('click', async () => {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'audio.webm');
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.transcription) {
+                    transcriptionElement.textContent = result.transcription;
+                    translationForm.style.display = 'block';
+                } else {
+                    alert('Transcription failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Transcription error: ' + error.message);
+            }
+        });
+
+        translateTextButton.addEventListener('click', async () => {
+            const text = transcriptionElement.textContent;
+            const language = languageSelect.value;
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('language', language);
+            try {
+                const response = await fetch('/translate', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.translated_text) {
+                    translatedTextElement.textContent = result.translated_text;
+                    const audio = new Audio('data:audio/mp3;base64,' + result.audio);
+                    audio.play();
+                } else {
+                    alert('Translation failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Translation error: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

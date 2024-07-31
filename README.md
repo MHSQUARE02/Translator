@@ -4,6 +4,7 @@
     This is just our static web application deployed using github repository. We have attached our github repository link and also explained detailly how to run and launch our web application locally below,
     
  Github Repository link- https://github.com/MHSQUARE02/Translator
+ Output gdrive link- https://drive.google.com/file/d/105aXKhHwDq4v94PSYGRTV2ryHDJ4Jopo/view?usp=sharing
     
 Translator/
 │

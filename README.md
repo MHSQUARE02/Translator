@@ -3,6 +3,8 @@
 **DISCLAIMER-** https://mhsquare02.github.io/Translator/ 
     This is just our static web application deployed using github repository. We have attached our github repository link and also explained detailly how to run and launch our web application locally below,
     
+ Github Repository link- https://github.com/MHSQUARE02/Translator
+    
 Translator/
 │
 ├── templates/
